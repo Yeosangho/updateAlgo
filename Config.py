@@ -30,8 +30,8 @@ class Config:
     human_num = 2
     actor_num = 8
     demo_buffer_size = 500 * 50
-    #replay_buffer_size = demo_buffer_size * (human_num + actor_num)
-    replay_buffer_size = 100
+    replay_buffer_size = demo_buffer_size * (human_num + actor_num)
+    #replay_buffer_size = 100
 
     iteration = 5
     episode = 300  # 300 games per iteration
@@ -39,7 +39,7 @@ class Config:
 
     START_STEP = 0
     LEARNER_TRAINING_STEP = 1500000
-    LEARNER_TRAINING_PART = 100
+    LEARNER_TRAINING_PART = 1000
     ACTOR_ACTING_PART = 1000
     ACTOR_SLEEP = 0.05
 

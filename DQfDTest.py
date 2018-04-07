@@ -149,7 +149,7 @@ class Learner(object):
             self.learner.train_Q_network(update=False)  # train along with generation
             train_itr += 1
             replay_full_episode = replay_full_episode or e
-            if(train_itr % 10 == 0) :
+            if(train_itr % 100 == 0) :
                 print("learner--- %s seconds ---" % (time.time() - start_time))
             if(train_itr % Config.LEARNER_TRAINING_PART == 0):
                 self.learner.save_model()
