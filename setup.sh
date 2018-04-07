@@ -1,3 +1,13 @@
+rm -rf actor
+mkdir actor
+mkdir actor/deletedexp
+mkdir actor/episodescore
+mkdir model
+mkdir frames
+mkdir learner
+mkdir learner/sampleexp
+mkdir learner/replaymemory
+
 sudo apt-get install python3-pip
 pip3 install numpy
 pip3 install moviepy
