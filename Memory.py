@@ -4,7 +4,7 @@ import math
 np.random.seed(1)
 tf.set_random_seed(1)
 
-
+def sign(x): return 1 if x >= 0 else -1
 # Sampling should not execute when the tree is not full !!!
 class SumTree(object):
     data_pointer = 0
@@ -118,7 +118,7 @@ class SumTree(object):
         return exp_val
 
     def anneal_alpha_beta(self, delta, actor_num, sub_train_iter):
-        delta = math.log(delta)
+        delta = sign(delta)*math.log(abs(delta))
         epsilon = 0.001
         self.d_score_cahe = self.gamma * self.d_score_cahe + (1-self.gamma) * (delta*delta)
         if(self.alpha > self.min_alpha):
