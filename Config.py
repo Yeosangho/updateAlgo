@@ -27,11 +27,12 @@ class Config:
     ACTOR_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'actor/')
     LEARNER_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'learner/')
     GIF_STEP = 10
-    human_num = 2
-    actor_num = 8
+    human_num = 1
+    actor_num = 1
     demo_buffer_size = 500 * 50
-    replay_buffer_size = demo_buffer_size * (human_num + actor_num)
-    #replay_buffer_size = 100
+    #replay_buffer_size = demo_buffer_size * (human_num + actor_num)
+    #replay_buffer_size = 250000
+    replay_buffer_size = 100
 
     iteration = 5
     episode = 300  # 300 games per iteration

@@ -118,7 +118,7 @@ class SumTree(object):
         return exp_val
 
     def anneal_alpha_beta(self, delta, actor_num, sub_train_iter):
-        delta = sign(delta)*math.log(abs(delta))
+        delta = sign(delta)*math.log(abs(delta)+1)
         epsilon = 0.001
         self.d_score_cahe = self.gamma * self.d_score_cahe + (1-self.gamma) * (delta*delta)
         if(self.alpha > self.min_alpha):
@@ -165,7 +165,7 @@ class Memory(object):
         return self.tree.full
 
     def store(self, transition, abs_errors, is_demo, time_stamp, current_ts):
-
+        abs_errors += self.epsilon
         clipped_errors = np.minimum(abs_errors, self.abs_err_upper)
         ps = np.power(clipped_errors, self.alpha)
         log_time_stamp = np.log(time_stamp+1)
@@ -207,7 +207,7 @@ class Memory(object):
     # update priority
     def batch_update(self, tree_idxes, abs_errors, time_stamp, isdemo):
         # priorities of demo transitions are given a bonus of demo_epsilon, to boost the frequency that they are sampled
-        #abs_errors[:self.tree.permanent_data] += self.demo_epsilon
+        abs_errors += self.epsilon
         clipped_errors = np.minimum(abs_errors, self.abs_err_upper)
         ps = np.power(clipped_errors, self.alpha)
         time_stamp = np.asarray(time_stamp)
