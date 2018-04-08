@@ -29,8 +29,8 @@ class Config:
     ACTOR_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'actor/')
     LEARNER_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'learner/')
     GIF_STEP = 10
-    human_num = 7
-    actor_num = 1
+    human_num = 1
+    actor_num = 7
     demo_buffer_size = 500 * 50
     #replay_buffer_size = demo_buffer_size * (human_num + actor_num)
     #replay_buffer_size = 250000
@@ -44,7 +44,7 @@ class Config:
     LEARNER_TRAINING_STEP = 1500000
     LEARNER_TRAINING_PART = 1000
     ACTOR_ACTING_PART = 1000
-    ACTOR_SLEEP = 0.05
+    ACTOR_SLEEP = 0.06
 
 class DDQNConfig(Config):
     demo_mode = 'get_demo'

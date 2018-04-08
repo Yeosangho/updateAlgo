@@ -10,3 +10,6 @@ print(a)
 c = [10]
 print(math.log(10))
 print(np.log(np.asarray(c)))
+a = [[1]]
+b = [[2]]
+print(a+b)

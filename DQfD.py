@@ -6,6 +6,7 @@ import functools
 from Memory import Memory
 from ops import linear, conv2d
 from functools import reduce
+import time
 def lazy_property(func):
     attribute = '_lazy_' + func.__name__
 
@@ -260,6 +261,7 @@ class DQfD:
         :param pre_train: True means should sample from demo_buffer instead of replay_buffer
         :param update: True means the action "update_target_net" executes outside, and can be ignored in the function
         """
+        #start_time =time.time()
         if not pre_train and not self.replay_memory.full():  # sampling should be executed AFTER replay_memory filled
             return
         self.time_step += 1
@@ -287,23 +289,38 @@ class DQfD:
         #print(time_steps)
         #print(np.reshape(next_state_batch, [-1, 84, 84, 3]))
 
+        #print('-1:' +str(time.time()- start_time))
+        #start_time = time.time()
         # provide for placeholder，compute first
-        Q_select = self.sess.run(self.Q_select, feed_dict={self.select_input: next_state_batch})
-        Q_eval = self.sess.run(self.Q_eval, feed_dict={self.eval_input: next_state_batch})
-        n_step_Q_select = self.sess.run(self.Q_select,feed_dict={self.select_input: n_step_state_batch})
-        n_step_Q_eval = self.sess.run(self.Q_eval, feed_dict={self.eval_input: n_step_state_batch})
-
+        #Q_select = self.sess.run(self.Q_select, feed_dict={self.select_input: next_state_batch})
+        #Q_eval = self.sess.run(self.Q_eval, feed_dict={self.eval_input: next_state_batch})
+        #n_step_Q_select = self.sess.run(self.Q_select,feed_dict={self.select_input: n_step_state_batch})
+        #n_step_Q_eval = self.sess.run(self.Q_eval, feed_dict={self.eval_input: n_step_state_batch})
+        #temp = self.sess.run(self.Q_select, feed_dict={self.select_input: state_batch})
+        #print(state_batch)
+        whole_state_bat = []
+        whole_state_bat = next_state_batch + n_step_state_batch + state_batch
+        whole_eval_bat = next_state_batch + n_step_state_batch
+        #print(whole_state_bat.__len__())
+        #Q_select, Q_eval = self.sess.run([self.Q_select, self.Q_eval], feed_dict={self.select_input: next_state_batch, self.eval_input: next_state_batch})
+        #n_step_Q_select, n_step_Q_eval = self.sess.run([self.Q_select, self.Q_eval], feed_dict={self.select_input: n_step_state_batch, self.eval_input: n_step_state_batch})
+        #temp = self.sess.run(self.Q_select, feed_dict={self.select_input: state_batch})
+        whole_Q_select, whole_Q_eval = self.sess.run([self.Q_select, self.Q_eval], feed_dict={self.select_input : whole_state_bat, self.eval_input : whole_eval_bat})
+        Q_select, n_step_Q_select, temp = whole_Q_select[0:self.config.BATCH_SIZE], whole_Q_select[self.config.BATCH_SIZE: self.config.BATCH_SIZE *2], whole_Q_select[self.config.BATCH_SIZE*2: self.config.BATCH_SIZE *3]
+        Q_eval, n_step_Q_eval = whole_Q_eval[0:self.config.BATCH_SIZE], whole_Q_eval[self.config.BATCH_SIZE: self.config.BATCH_SIZE *2]
+        #print('0:' +str(time.time()- start_time))
+        #start_time = time.time()
+        #print(temp[2][1])
         y_batch = np.zeros((self.config.BATCH_SIZE, self.action_dim))
         n_step_y_batch = np.zeros((self.config.BATCH_SIZE, self.action_dim))
         for i in range(self.config.BATCH_SIZE):
             # state, action, reward, next_state, done, demo_data, n_step_reward, n_step_state, n_step_done = t
             #print(state_batch[i].shape)
-            temp = self.sess.run(self.Q_select, feed_dict={self.select_input: state_batch[i].reshape([-1, 84,84,3])})[0]
-            temp_0 = np.copy(temp)
+            temp_0 = np.copy(temp[i])
             # add 1-step reward
             action = np.argmax(Q_select[i])
-            temp[action_batch[i]] = reward_batch[i] + (1 - int(done_batch[i])) * self.config.GAMMA * Q_eval[i][action]
-            y_batch[i] = temp
+            temp[i][action_batch[i]] = reward_batch[i] + (1 - int(done_batch[i])) * self.config.GAMMA * Q_eval[i][action]
+            y_batch[i] = temp[i]
             # add n-step reward
             action = np.argmax(n_step_Q_select[i])
             q_n_step = (1 - int(n_step_done_batch[i])) * self.config.GAMMA**actual_n[i] * n_step_Q_eval[i][action]
@@ -313,22 +330,26 @@ class DQfD:
             if(demo_data[i] == 1.0):
                 self.demo_num = self.demo_num + 1
             self.sum_age = self.sum_age + time_steps[i]
-        _, loss, abs_errors = self.sess.run([self.optimize, self.loss, self.abs_errors],
+
+        #print('1:' +str(time.time()- start_time))
+        #start_time = time.time()
+        _,  abs_errors = self.sess.run([self.optimize, self.abs_errors],
                                       feed_dict={self.y_input: y_batch,
                                                  self.n_step_y_input: n_step_y_batch,
                                                  self.select_input: state_batch,
                                                  self.action_batch: action_batch,
                                                  self.isdemo: demo_data,
                                                  self.ISWeights: ISWeights})
-
+        #print('2:' +str(time.time()- start_time))
         for error in abs_errors :
             self.sum_abs_error += error
-
+        #start_time = time.time()
         #print(loss)
         #print(tree_idxes)
 
         #print(abs_errors.shape)
         self.replay_memory.batch_update(tree_idxes, abs_errors, [self.time_step], demo_data)  # update priorities for data in memory
+        #print('3:' +str(time.time()- start_time))
 
         # 此例中一局步数有限，因此可以外部控制一局结束后update ，update为false时在外部控制
         if update and self.time_step % self.config.UPDATE_TARGET_NET == 0:
