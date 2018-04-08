@@ -250,6 +250,7 @@ class DQfD:
         #print(abs_errors.shape)
 
         value, age, demo = self.replay_memory.store(np.array(transition), abs_errors, demo_data[0], time_step[0], current_ts)
+        #print("update :" +  str(time_step[0]) +"deleted :" + str(age))
         #if (self.name == 'actor0'):
         #   print(demo)
         # epsilon->FINAL_EPSILON(min_epsilon)
@@ -330,7 +331,8 @@ class DQfD:
             if(demo_data[i] == 1.0):
                 self.demo_num = self.demo_num + 1
             self.sum_age = self.sum_age + time_steps[i]
-
+            #print(time_steps[i])
+        #print(time_steps)
         #print('1:' +str(time.time()- start_time))
         #start_time = time.time()
         _,  abs_errors = self.sess.run([self.optimize, self.abs_errors],

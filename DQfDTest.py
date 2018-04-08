@@ -85,7 +85,7 @@ def goNextEpisode(count,file, episode):
     file.readline()
     return count,file
 
-def set_n_step(container, n):
+def set_n_step(container, n, ts):
     print(container)
     t_list = list(container)
     # accumulated reward of first (trajectory_n-1) transitions
@@ -94,7 +94,7 @@ def set_n_step(container, n):
         end = min(len(t_list) - 1, begin + Config.trajectory_n - 1)
         n_step_reward += t_list[end][2]*Config.GAMMA**(end-begin)
         # extend[n_reward, n_next_s, n_done, actual_n]
-        t_list[begin].extend([n_step_reward, t_list[end][3], t_list[end][4], end-begin+1])
+        t_list[begin].extend([n_step_reward, t_list[end][3], t_list[end][4], end-begin+1, ts])
         n_step_reward = (n_step_reward - t_list[begin][2])/Config.GAMMA
     return t_list
 
@@ -151,7 +151,7 @@ class Learner(object):
             self.learner.train_Q_network(update=False)  # train along with generation
             train_itr += 1
             replay_full_episode = replay_full_episode or e
-            if(train_itr % 10 == 0) :
+            if(train_itr % 100 == 0) :
                 print("learner--- %s seconds ---" % (time.time() - start_time))
             if(train_itr % Config.LEARNER_TRAINING_PART == 0):
                 self.learner.save_model()
@@ -159,9 +159,10 @@ class Learner(object):
                 sample_value = math.pow(self.learner.sum_abs_error / (Config.LEARNER_TRAINING_PART*Config.BATCH_SIZE), 0.4)
                 sample_age = self.learner.sum_age / (Config.LEARNER_TRAINING_PART*Config.BATCH_SIZE)
                 print("learner_sample")
-                print(sample_demo)
                 print(sample_value)
                 print(sample_age)
+                print(sample_demo)
+
                 print("replay_memory")
                 print(self.learner.replay_memory.tree.total_p)
                 writeLog(Config.LEARNER_DATA_PATH + 'sampleexp/', sample_log,
@@ -203,7 +204,7 @@ class Actor(object):
         scores, e, replay_full_episode = [], 0, None
         filename = ''
         if(self.name == "actor0"):
-            delete_log = openLog(Config.ACTOR_DATA_PATH+'deletedexp/', 'deletedExp', ['step', 'value', 'age', 'demo'])
+            delete_log = openLog(Config.ACTOR_DATA_PATH+'deletedexp/', 'deletedExp', ['step', 'train_itr','value', 'age', 'demo'])
             episode_log = openLog(Config.ACTOR_DATA_PATH + 'episodescore/', '', ['episode', 'score'])
         while not coord.should_stop():
             done, score, n_step_reward, state = False, 0, None, self.env.reset()
@@ -253,7 +254,7 @@ class Actor(object):
                         deleted_value = 0
                         deleted_age = 0
                         deleted_demo = 0
-                        writeLog( Config.ACTOR_DATA_PATH +'deletedexp/', delete_log, [str(count), str(sum_value), str(sum_age), str(sum_demo)] )
+                        writeLog( Config.ACTOR_DATA_PATH +'deletedexp/', delete_log, [str(count), str(train_itr), str(sum_value), str(sum_age), str(sum_demo)] )
                     if self.actor.replay_memory.full():
                         replay_full_episode = replay_full_episode or e
                     if train_itr % Config().UPDATE_TARGET_NET == 0:
@@ -273,6 +274,7 @@ class Actor(object):
                     delta = score - pre_score
                     actor_num = Config.actor_num
                     sub_train_itr = train_itr - pre_train_itr
+                    #print(sub_train_itr)
                     self.actor.replay_memory.update_alpha_and_beta(delta, actor_num, sub_train_itr)
                     pre_train_itr = train_itr
 
@@ -375,19 +377,6 @@ class Human(object):
                 # e += 1
                 self.episode = self.episodeList[n]
                 self.i, self.f = goNextEpisode(self.i, self.f, self.episode)
-
-# extend [n_step_reward, n_step_away_state] for transitions in demo
-def set_n_step(container, n, training_step):
-    t_list = list(container)
-    # accumulated reward of first (trajectory_n-1) transitions
-    n_step_reward = sum([t[2] * Config.GAMMA**i for i, t in enumerate(t_list[0:min(len(t_list), n) - 1])])
-    for begin in range(len(t_list)):
-        end = min(len(t_list) - 1, begin + Config.trajectory_n - 1)
-        n_step_reward += t_list[end][2]*Config.GAMMA**(end-begin)
-        # extend[n_reward, n_next_s, n_done, actual_n]
-        t_list[begin].extend([n_step_reward, t_list[end][3], t_list[end][4], end-begin+1, training_step])
-        n_step_reward = (n_step_reward - t_list[begin][2])/Config.GAMMA
-    return t_list
 
 
 

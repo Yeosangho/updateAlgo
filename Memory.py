@@ -20,12 +20,12 @@ class SumTree(object):
         self.full = False
 
         self.alpha = 0.6
-        self.min_alpha = 0.01
-        self.beta = 0.2
-        self.min_beta = 0.001
+        self.min_alpha = 0.05
+        self.beta = 0.4
+        self.min_beta = 0.0001
         self.gamma = 0.99
-        self.alpha_decay_rate = 0.00001
-        self.beta_decay_rate = 0.00001
+        self.alpha_decay_rate = 0.000003
+        self.beta_decay_rate = 0.000002
 
         self.d_score_cahe = 0
 
@@ -44,11 +44,11 @@ class SumTree(object):
                 self.data_pointer = self.data_pointer % self.capacity + self.permanent_data  # make sure demo data permanent
         elif (self.full):
             if(current_ts == 0):
-                experience_val = (1-self.alpha)*self.total_p  + self.beta *is_demo
+                experience_val = (1-self.alpha)*self.total_p  + self.beta *self.total_d
             else :
-                experience_val = (1-self.alpha)*self.total_p + (self.alpha)*(self.total_ts/current_ts) + self.beta *is_demo
-            #v = np.random.uniform(pri_seg * i, pri_seg * (i + 1))
-            del_tree_idx  = self.chooseDeletedExperience(experience_val, current_ts)
+                experience_val = (1-self.alpha)*self.total_p + (self.alpha)*(self.total_ts/current_ts) + self.beta *self.total_d
+            v = np.random.uniform(0, experience_val)
+            del_tree_idx  = self.chooseDeletedExperience(v, current_ts)
             del_data_idx = del_tree_idx - self.capacity + 1
             deleteddata = self.data[del_tree_idx - self.capacity +1]
             self.data[del_data_idx]  = data
@@ -56,25 +56,22 @@ class SumTree(object):
             demo = int(deleteddata[5])    
             age = deleteddata[10]                 
         return value, age, demo
-    def update(self, tree_idx, p, ts, d):
+    def update(self, tree_idx, p, ts=None, d=None):
         deleted_p = self.tree[tree_idx]
         change_p = p - self.tree[tree_idx]
-
-        deleted_ts = self.timetree[tree_idx]
-        change_ts = ts - self.timetree[tree_idx]
-
-
-        deleted_d = self.demotree[tree_idx]
-        change_d = d - self.demotree[tree_idx]
-
         self.tree[tree_idx] = p
-        self.timetree[tree_idx] = ts
-        self.demotree[tree_idx] = d
+
+        if ts is not None:
+            change_ts = ts - self.timetree[tree_idx]
+            change_d = d - self.demotree[tree_idx]
+            self.timetree[tree_idx] = ts
+            self.demotree[tree_idx] = d
         while tree_idx != 0:
             tree_idx = (tree_idx - 1) // 2
             self.tree[tree_idx] += change_p
-            self.timetree[tree_idx] += change_ts
-            self.demotree[tree_idx] += change_d
+            if ts is not None:
+                self.timetree[tree_idx] += change_ts
+                self.demotree[tree_idx] += change_d
 
         return deleted_p
     def chooseDeletedExperience(self, v, current_ts):
@@ -217,7 +214,8 @@ class Memory(object):
         #print(time_stamp.shape)
         #print(type())
         for ti, p, d in zip(tree_idxes, ps, isdemo):
-            self.tree.update(ti, p,  time_stamp, d)
+            #self.tree.update(ti, p,  time_stamp, d)
+            self.tree.update(ti, p)
 
     def update_alpha_and_beta(self, dscore, actor_num, sub_train_iter):
         self.tree.anneal_alpha_beta(dscore, actor_num, sub_train_iter)
