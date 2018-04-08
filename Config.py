@@ -11,6 +11,8 @@ class Config:
 
     TRAJ_PATH = "/home/soboru963/atari_v2_release/trajectories/"
     SCREEN_PATH = '/home/soboru963/atari_v2_release/screens/'
+    #TRAJ_PATH = "/home/soboru963/atari_v1/trajectories/"
+    #SCREEN_PATH = '/home/soboru963/atari_v1/screens/'
     GAMMA = 0.99  # discount factor for target Q
     INITIAL_EPSILON = 1.0  # starting value of epsilon
     FINAL_EPSILON = 0.01  # final value of epsilon
