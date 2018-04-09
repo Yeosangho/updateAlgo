@@ -269,7 +269,7 @@ class DQfD:
         ##For the Pretrain
         #actual_memory = self.demo_memory if pre_train else self.replay_memory
         actual_memory = self.replay_memory
-        tree_idxes, minibatch, ISWeights = actual_memory.sample(self.config.BATCH_SIZE)
+        tree_idxes, minibatch, ISWeights = actual_memory.sample(self.config.BATCH_SIZE, self.time_step)
 
         #print(minibatch[3][2])
 

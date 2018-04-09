@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 import math
+from Config import *
+import random
 from memory_profiler import profile
 import time
 import gc
@@ -34,6 +36,8 @@ class SumTree(object):
         self.avg_val = 0
         self.avg_time = 0
         self.avg_demo = 0
+        self.deleted_candidates = [0] * Config.BATCH_SIZE
+        self.del_count = 0
 
     def __len__(self):
         return self.capacity if self.full else self.data_pointer
@@ -48,12 +52,15 @@ class SumTree(object):
                 self.full = True
                 self.data_pointer = self.data_pointer % self.capacity + self.permanent_data  # make sure demo data permanent
         elif (self.full):
-            if(current_ts == 0):
-                experience_val = (1-self.alpha)*self.total_p  + self.beta *self.total_d
+
+
+            if(self.deleted_candidates.__len__ ()== 0):
+                del_tree_idx = self.capacity -1
             else :
-                experience_val = (1-self.alpha)*self.total_p + (self.alpha)*(self.total_ts/current_ts) + self.beta *self.total_d
-            v = np.random.uniform(0, experience_val)
-            del_tree_idx  = self.chooseDeletedExperience(v, current_ts)
+                del_tree_idx = self.deleted_candidates[self.del_count]
+                self.del_count += 1
+                if(self.del_count %  Config.BATCH_SIZE == 0):
+                    self.del_count = 0
             #del_tree_idx = self.capacity + 1
             del_data_idx = del_tree_idx - self.capacity + 1
             deleteddata = self.data[del_data_idx]
@@ -95,7 +102,7 @@ class SumTree(object):
     def chooseDeletedExperience(self, v, current_ts):
         parent_idx = 0
         count =0
-        start_time = time.time()
+        #start_time = time.time()
         while True:
             left_child_idx = 2 * parent_idx + 1
             right_child_idx = left_child_idx + 1
@@ -113,7 +120,7 @@ class SumTree(object):
                 v -= self.calc_exp_val(value, ts, demo, current_ts)
                 parent_idx = left_child_idx
             count += 1
-        print("chooseDeletedExpereience : " +str(count) + "/"+str(time.time() - start_time))
+        #print("chooseDeletedExpereience : " +str(count) + "/"+str(time.time() - start_time))
         return leaf_idx
 
 
@@ -168,7 +175,7 @@ class SumTree(object):
 
 class Memory(object):
 
-    epsilon = 0.000001  # small amount to avoid zero priority
+    epsilon = 0.001  # small amount to avoid zero priority
     demo_epsilon = 1.0  # 1.0  # extra
     alpha = 0.4  # [0~1] convert the importance of TD error to priority
     beta = 0.6  # importance-sampling, from initial value increasing to 1
@@ -196,7 +203,7 @@ class Memory(object):
         #print(ps)
         self.tree.add(ps[0], log_time_stamp, is_demo, transition, log_current_ts)  # set the max_p for new transition
         #value, age, demo = self.tree.add(ps[0], log_time_stamp, is_demo, transition, log_current_ts)  # set the max_p for new transition
-    def sample(self, n):
+    def sample(self, n, current_ts):
         assert self.full()
         b_idx = np.empty((n,), dtype=np.int32)
         b_memory = np.empty((n, self.tree.data[0].size), dtype=object)
@@ -205,15 +212,27 @@ class Memory(object):
         self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])
 
         min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p
-        assert min_prob > 0
+        if(min_prob <= 0):
+            min_prob = self.epsilon
         pmore = 0
         p2more = 0
+
+        if (current_ts == 0):
+            experience_val = (1 - self.tree.alpha) * self.tree.total_p + self.tree.beta * self.tree.total_d
+        else:
+            experience_val = (1 - self.tree.alpha) * self.tree.total_p + (self.tree.alpha) * (self.tree.total_ts / current_ts) + self.tree.beta * self.tree.total_d
+
+
         for i in range(n):
             v = np.random.uniform(pri_seg * i, pri_seg * (i + 1))
             #v = np.random.uniform(0, self.tree.total_p )
             #v = 0.001
             #v = self.tree.total_p - 0.001
             idx, p, data = self.tree.get_leaf(v)  # note: idx is the index in self.tree.tree
+
+            v = np.random.uniform(0, experience_val)
+            del_tree_idx = self.tree.chooseDeletedExperience(v, current_ts)
+            self.tree.deleted_candidates[i] = del_tree_idx
             #print("p :" + str(p))
             #idx2, p2, _ = self.tree.chooseDeletedExperience(v)
             #print("p2 :" + str(p2))
