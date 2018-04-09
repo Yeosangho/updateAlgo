@@ -1,6 +1,9 @@
 import numpy as np
 import tensorflow as tf
-import math 
+import math
+from memory_profiler import profile
+import time
+import gc
 np.random.seed(1)
 tf.set_random_seed(1)
 
@@ -28,10 +31,12 @@ class SumTree(object):
         self.beta_decay_rate = 0.000002
 
         self.d_score_cahe = 0
+        self.avg_val = 0
+        self.avg_time = 0
+        self.avg_demo = 0
 
     def __len__(self):
         return self.capacity if self.full else self.data_pointer
-
     def add(self, p,  time_stamp, is_demo, data, current_ts):
         demo = age = value = 0
         if not self.full:
@@ -49,13 +54,25 @@ class SumTree(object):
                 experience_val = (1-self.alpha)*self.total_p + (self.alpha)*(self.total_ts/current_ts) + self.beta *self.total_d
             v = np.random.uniform(0, experience_val)
             del_tree_idx  = self.chooseDeletedExperience(v, current_ts)
+            #del_tree_idx = self.capacity + 1
             del_data_idx = del_tree_idx - self.capacity + 1
-            deleteddata = self.data[del_tree_idx - self.capacity +1]
+            deleteddata = self.data[del_data_idx]
             self.data[del_data_idx]  = data
+            #time_stamp = 1
             value = self.update(del_tree_idx, p, time_stamp, is_demo)
-            demo = int(deleteddata[5])    
-            age = deleteddata[10]                 
-        return value, age, demo
+            age = deleteddata[10]
+            demo = int(deleteddata[5])
+            
+            self.avg_val = self.avg_val + value
+            self.avg_time = self.avg_time + age
+            self.avg_demo = self.avg_demo + demo
+            #tree_idx = self.data_pointer + self.capacity - 1
+            #self.data[self.data_pointer] = data
+            #value = self.update(tree_idx, p, time_stamp, is_demo)
+            #self.data_pointer += 1
+            #if self.data_pointer >= self.capacity:
+            #    self.full = True
+            #    self.data_pointer = self.data_pointer % self.capacity + self.permanent_data  # make sure demo data permanent
     def update(self, tree_idx, p, ts=None, d=None):
         deleted_p = self.tree[tree_idx]
         change_p = p - self.tree[tree_idx]
@@ -74,20 +91,29 @@ class SumTree(object):
                 self.demotree[tree_idx] += change_d
 
         return deleted_p
+
     def chooseDeletedExperience(self, v, current_ts):
         parent_idx = 0
+        count =0
+        start_time = time.time()
         while True:
             left_child_idx = 2 * parent_idx + 1
             right_child_idx = left_child_idx + 1
+            
             if left_child_idx >= len(self.tree):
                 leaf_idx = parent_idx
                 break
-            if v <= self.calc_exp_val(self.tree[left_child_idx], self.timetree[left_child_idx], self.demotree[left_child_idx], current_ts):
+            value = self.tree[left_child_idx]
+            ts = self.timetree[left_child_idx]
+            demo = self.demotree[left_child_idx]
+
+            if v <= self.calc_exp_val(value, ts, demo, current_ts):
                 parent_idx = right_child_idx
             else:
-                v -= self.calc_exp_val(self.tree[left_child_idx], self.timetree[left_child_idx], self.demotree[left_child_idx], current_ts)
+                v -= self.calc_exp_val(value, ts, demo, current_ts)
                 parent_idx = left_child_idx
-        data_idx = leaf_idx - self.capacity + 1
+            count += 1
+        print("chooseDeletedExpereience : " +str(count) + "/"+str(time.time() - start_time))
         return leaf_idx
 
 
@@ -120,12 +146,12 @@ class SumTree(object):
         self.d_score_cahe = self.gamma * self.d_score_cahe + (1-self.gamma) * (delta*delta)
         if(self.alpha > self.min_alpha):
             alpha_ada_decay_rate = (self.alpha_decay_rate * delta) / (self.d_score_cahe**(1/2)+epsilon)
-            self.alpha = (self.alpha - (sub_train_iter/actor_num)* alpha_ada_decay_rate)
+            self.alpha = (self.alpha - (sub_train_iter/actor_num)* alpha_ada_decay_rate * self.alpha)
             if(self.alpha < self.min_alpha) :
                 self.alpha = self.min_alpha
         if(self.beta > self.min_beta):
             beta_ada_decay_rate = (self.beta_decay_rate * delta) / (self.d_score_cahe**(1/2)+epsilon)
-            self.beta = (self.beta - (sub_train_iter/actor_num)* beta_ada_decay_rate)
+            self.beta = (self.beta - (sub_train_iter/actor_num)* beta_ada_decay_rate * self.beta)
             if(self.beta < self.min_beta) :
                 self.beta = self.min_beta
         print(self.alpha)
@@ -168,8 +194,8 @@ class Memory(object):
         log_time_stamp = np.log(time_stamp+1)
         log_current_ts = np.log(current_ts + 1)
         #print(ps)
-        value, age, demo = self.tree.add(ps[0], log_time_stamp, is_demo, transition, log_current_ts)  # set the max_p for new transition
-        return value, age, demo
+        self.tree.add(ps[0], log_time_stamp, is_demo, transition, log_current_ts)  # set the max_p for new transition
+        #value, age, demo = self.tree.add(ps[0], log_time_stamp, is_demo, transition, log_current_ts)  # set the max_p for new transition
     def sample(self, n):
         assert self.full()
         b_idx = np.empty((n,), dtype=np.int32)
@@ -219,3 +245,8 @@ class Memory(object):
 
     def update_alpha_and_beta(self, dscore, actor_num, sub_train_iter):
         self.tree.anneal_alpha_beta(dscore, actor_num, sub_train_iter)
+
+if __name__ == '__main__':
+    np.zeros
+
+    basic_mean()

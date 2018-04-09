@@ -21,7 +21,9 @@ from PIL import Image
 import math
 import csv
 from datetime import datetime
+import gc
 
+import sys
 from random import shuffle
 def process_frame(frame):
     s = scipy.misc.imresize(frame, [84, 84, 3])
@@ -86,7 +88,7 @@ def goNextEpisode(count,file, episode):
     return count,file
 
 def set_n_step(container, n, ts):
-    print(container)
+    #print(container)
     t_list = list(container)
     # accumulated reward of first (trajectory_n-1) transitions
     n_step_reward = sum([t[2] * Config.GAMMA**i for i, t in enumerate(t_list[0:min(len(t_list), n) - 1])])
@@ -153,6 +155,7 @@ class Learner(object):
             replay_full_episode = replay_full_episode or e
             if(train_itr % 100 == 0) :
                 print("learner--- %s seconds ---" % (time.time() - start_time))
+                #print(sys.getsizeof(self.learner.replay_memory.tree.timetree))
             if(train_itr % Config.LEARNER_TRAINING_PART == 0):
                 self.learner.save_model()
                 sample_demo = float(self.learner.demo_num) / (Config.LEARNER_TRAINING_PART*Config.BATCH_SIZE)
@@ -212,9 +215,9 @@ class Actor(object):
             t_q = deque(maxlen=Config.trajectory_n)
 
             while done is False:
-                time.sleep(Config.ACTOR_SLEEP)
                 startTime = time.time()
-                # print(index + " running!")
+                if(self.actor.replay_memory.full()):
+                    time.sleep(Config.ACTOR_SLEEP)                 # print(index + " running!")
                 action = self.actor.egreedy_action(state)  # e-greedy action for train
                 next_state, reward, done, _ = self.env.step(action)
                 # env.render()
@@ -233,10 +236,7 @@ class Actor(object):
                         n_step_reward = (n_step_reward - reward_to_sub) / Config.GAMMA
                         n_step_reward += reward * Config.GAMMA ** (Config.trajectory_n - 1)
                     t_q[0].extend([n_step_reward, next_state, done, t_q.maxlen, self.learner.time_step])  # actual_n is max_len here
-                    value, age, demo = self.actor.perceive(t_q[0], self.learner.time_step)  # perceive when a transition is completed
-                    deleted_value = deleted_value + value
-                    deleted_age = deleted_age + age
-                    deleted_demo = deleted_demo + demo
+                    self.actor.perceive(t_q[0], self.learner.time_step)  # perceive when a transition is completed
                     #print(demo)
                     # print(t_q[0][3])
                     #print(self.learner.time_step)
@@ -244,17 +244,22 @@ class Actor(object):
                     if(count % Config.ACTOR_ACTING_PART == 0 and "actor0" == self.name):
                         print(self.name + "--- %s seconds ---" % (time.time() - startTime) + "/"+str(self.actor.replay_memory.tree.data_pointer))
                     if(count % Config.ACTOR_ACTING_PART == 0 and "actor0" == self.name ):
-                        sum_value = deleted_value / Config.ACTOR_ACTING_PART
-                        sum_age = deleted_age / Config.ACTOR_ACTING_PART
-                        sum_demo = float(deleted_demo) / Config.ACTOR_ACTING_PART
+                        None
+                        #deleted_value = deleted_value + value
+                        #deleted_age = deleted_age + age
+                        #deleted_demo = deleted_demo + demo
+                        #
+                        sum_value = self.actor.replay_memory.tree.avg_val / Config.ACTOR_ACTING_PART
+                        sum_age = self.actor.replay_memory.tree.avg_time / Config.ACTOR_ACTING_PART
+                        sum_demo = self.actor.replay_memory.tree.avg_demo / Config.ACTOR_ACTING_PART
                         print("actor_deleted")
                         print(sum_value)
                         print(sum_age)
                         print(sum_demo)
-                        deleted_value = 0
-                        deleted_age = 0
-                        deleted_demo = 0
                         writeLog( Config.ACTOR_DATA_PATH +'deletedexp/', delete_log, [str(count), str(train_itr), str(sum_value), str(sum_age), str(sum_demo)] )
+                        self.actor.replay_memory.tree.avg_val = 0
+                        self.actor.replay_memory.tree.avg_time = 0
+                        self.actor.replay_memory.tree.avg_demo = 0
                     if self.actor.replay_memory.full():
                         replay_full_episode = replay_full_episode or e
                     if train_itr % Config().UPDATE_TARGET_NET == 0:
@@ -282,7 +287,7 @@ class Actor(object):
                         #print("actor_update_target")
                         self.actor.sess.run(self.actor.update_target_net)
 
-                    scores.append(score)
+                    #scores.append(score)
                 if replay_full_episode is not None:
                     print("episode: {}  trained-episode: {}  score: {}  memory length: {}  epsilon: {}"
                           .format(e, e - replay_full_episode, score, len(self.actor.replay_memory), self.actor.epsilon))
@@ -328,7 +333,8 @@ class Human(object):
                 while (not episodeEnd):
 
                     startTime = time.time()
-                    time.sleep(Config.ACTOR_SLEEP)
+                    if(self.human.replay_memory.full()):
+                        time.sleep(Config.HUMAN_SLEEP)
                     next_state, reward, done, action, episodeEnd = step(self.i, self.f, self.episode)
                     a = self.human.sess.run(self.human.update_local_ops)
                     asum = 0

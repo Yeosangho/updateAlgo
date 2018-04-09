@@ -118,7 +118,7 @@ class DQfD:
     def build_layers(self, states, cnames, initializer, activation_fn, reg=None):
         self.w = {}
         self.t_w = {}
-        self.dueling = False
+        self.dueling = True
         a_d = self.action_dim
 
         self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(states,
@@ -136,20 +136,19 @@ class DQfD:
 
         if self.dueling:
             self.value_hid, self.w['l4_val_w'], self.w['l4_val_b'] = \
-                tf.linear(self.l3_flat, 512, cnames, activation_fn=activation_fn, name='value_hid')
+                linear(self.l3_flat, 512, cnames, activation_fn=activation_fn, name='value_hid')
 
             self.adv_hid, self.w['l4_adv_w'], self.w['l4_adv_b'] = \
-                tf.linear(self.l3_flat, 512, cnames, activation_fn=activation_fn, name='adv_hid')
+                linear(self.l3_flat, 512, cnames, activation_fn=activation_fn, name='adv_hid')
 
             self.value, self.w['val_w_out'], self.w['val_w_b'] = \
-                tf.linear(self.value_hid, 1, cnames, name='value_out')
+                linear(self.value_hid, 1, cnames, name='value_out')
 
             self.advantage, self.w['adv_w_out'], self.w['adv_w_b'] = \
-                tf.linear(self.adv_hid, self.env.action_size, cnames, name='adv_out')
+                linear(self.adv_hid, self.action_dim, cnames, name='adv_out')
 
             # Average Dueling
-            self.q = self.value + (self.advantage -
-                                   tf.reduce_mean(self.advantage, cnames, reduction_indices=1, keep_dims=True))
+            self.q = self.value +  (self.advantage -  tf.reduce_mean(self.advantage, axis=1, keepdims=True))
         else:
             self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, cnames, activation_fn=activation_fn, name='l4')
 
@@ -249,14 +248,13 @@ class DQfD:
         #print(abs_errors)
         #print(abs_errors.shape)
 
-        value, age, demo = self.replay_memory.store(np.array(transition), abs_errors, demo_data[0], time_step[0], current_ts)
+        self.replay_memory.store(np.array(transition), abs_errors, demo_data[0], time_step[0], current_ts)
         #print("update :" +  str(time_step[0]) +"deleted :" + str(age))
         #if (self.name == 'actor0'):
         #   print(demo)
         # epsilon->FINAL_EPSILON(min_epsilon)
         if self.replay_memory.full():
             self.epsilon = max(self.config.FINAL_EPSILON, self.epsilon * self.config.EPSILIN_DECAY)
-        return value, age, demo
     def train_Q_network(self, pre_train=False, update=True):
         """
         :param pre_train: True means should sample from demo_buffer instead of replay_buffer
@@ -345,6 +343,8 @@ class DQfD:
         #print('2:' +str(time.time()- start_time))
         for error in abs_errors :
             self.sum_abs_error += error
+        if(self.time_step % self.config.LEARNER_TRAINING_PART == 0):
+            print("Q_select : " + str(Q_select[0]))
         #start_time = time.time()
         #print(loss)
         #print(tree_idxes)

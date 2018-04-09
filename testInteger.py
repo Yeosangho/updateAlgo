@@ -4,6 +4,7 @@ d = 2000000 * 2000000
 print(d)
 
 a  = 0.4
+
 for i in range(1000000) :
     a = a - 0.000002*a
 print(a)
@@ -12,5 +13,5 @@ print(math.log(10))
 print(np.log(np.asarray(c)))
 a = [[1]]
 b = [[2]]
-print(a+b)
-print(816*64)
+print(math.log(500000*2 +1,2))
+#print(816*64)
