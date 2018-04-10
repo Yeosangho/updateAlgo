@@ -418,6 +418,7 @@ class Trainer():
         self.episode = self.i = self.f = None
     def run(self):
         train_itr = 0
+        learn_count = 0
         episode_frames = []
         episode_count = 0
         deleted_value = 0
@@ -508,8 +509,9 @@ class Trainer():
                 train_itr = train_itr + 1
                 if self.agent.replay_memory.full():
                     self.agent.train_Q_network(update=False)  # train along with generation
+                    learn_count += 1
                     if (train_itr % Config.LEARNER_TRAINING_PART == 0):
-                        self.agent.save_model()
+                        #self.agent.save_model()
                         sample_demo = float(self.agent.demo_num) / (Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE)
                         sample_value = math.pow(
                             self.agent.sum_abs_error / (Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE), 0.4)
@@ -534,7 +536,7 @@ class Trainer():
                                   str(self.agent.replay_memory.tree.alpha),
                                   str(self.agent.replay_memory.tree.beta)])
                     replay_full_episode = replay_full_episode or e
-                if train_itr % Config().UPDATE_TARGET_NET == 0:
+                if learn_count % Config().UPDATE_TARGET_NET == 0:
                     # print("actor_update_target"+str(train_itr))
                     self.agent.sess.run(self.agent.update_target_net)
                 if(train_itr % 100 == 0):
@@ -563,11 +565,11 @@ class Trainer():
                 if self.agent.replay_memory.full():
                     delta = actor_score - pre_score
                     actor_num = 1
-                    sub_train_itr = train_itr - pre_train_itr
+                    sub_train_itr = learn_count - pre_train_itr
                     # print(sub_train_itr)
                     self.agent.replay_memory.update_alpha_and_beta(delta, actor_num, sub_train_itr)
-                    pre_train_itr = train_itr
-
+                    pre_train_itr = learn_count
+                    pre_score = actor_score
                     # scores.append(score)
                 if replay_full_episode is not None:
                     print("episode: {}  trained-episode: {}  score: {}  memory length: {}  epsilon: {}"
@@ -585,7 +587,7 @@ class Trainer():
                 t_q_actor = deque(maxlen=Config.trajectory_n)
                 episode_count = episode_count + 1
                 episode_frames = []
-                pre_score = actor_score
+
             if (episodeEnd):
                 # handle transitions left in t_q
 

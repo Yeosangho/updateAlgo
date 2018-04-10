@@ -3,10 +3,10 @@ import math
 d = 2000000 * 2000000
 print(d)
 
-a  = 0.4
+a  = 0.999
 
 for i in range(1000000) :
-    a = a - 0.000002*a
+    a = a - 0.00001*a
 print(a)
 c = [10]
 print(math.log(10))

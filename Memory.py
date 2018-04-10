@@ -17,8 +17,11 @@ class SumTree(object):
     def __init__(self, capacity, permanent_data=0):
         self.capacity = capacity
         self.tree = np.zeros(2 * capacity - 1)  # stores not probabilities but priorities !!!
+        self.reverse_tree = np.zeros(2*capacity - 1)
         self.timetree = np.zeros(2 * capacity - 1)
         self.demotree = np.zeros(2 * capacity - 1)
+
+        self.numtree = np.zeros(2 * capacity - 1)
         self.data = np.zeros(capacity, dtype=object)  # stores transitions
         self.permanent_data = permanent_data  # numbers of data which never be replaced, for demo data protection
         assert 0 <= self.permanent_data <= self.capacity  # equal is also illegal
@@ -29,8 +32,8 @@ class SumTree(object):
         self.beta = 0.3
         self.min_beta = 0.001
         self.gamma = 0.99
-        self.alpha_decay_rate = 0.000003
-        self.beta_decay_rate = 0.000002
+        self.alpha_decay_rate = 0.00001
+        self.beta_decay_rate = 0.00001
 
         self.d_score_cahe = 0
         self.avg_val = 0
@@ -52,12 +55,10 @@ class SumTree(object):
                 self.data_pointer = self.data_pointer % self.capacity + self.permanent_data  # make sure demo data permanent
         elif (self.full):
 
-            if (current_ts == 0):
-                experience_val = (1 - self.alpha) * self.total_p + self.beta * self.total_d
-            else:
-                experience_val = (1 - self.alpha) * self.total_p + (self.alpha) * (
-                            self.total_ts / current_ts) + self.beta * self.total_d
 
+            experience_val = (1 - self.alpha) * self.total_reverse_p + (self.alpha) * (
+                    self.capacity - (self.total_ts/current_ts)) + self.beta * self.total_d
+            #print(self.numtree[1])
             v = np.random.uniform(0, experience_val)
             del_tree_idx = self.chooseDeletedExperience(v, current_ts)
             del_data_idx = del_tree_idx - self.capacity + 1
@@ -83,6 +84,13 @@ class SumTree(object):
         change_p = p - self.tree[tree_idx]
         self.tree[tree_idx] = p
 
+        deleted_reverse_p = self.reverse_tree[tree_idx]
+        change_reverse_p = (1-p) - self.reverse_tree[tree_idx]
+        self.reverse_tree[tree_idx] = 1-p
+
+        change_num = 1 - self.numtree[tree_idx]
+        self.numtree[tree_idx] = 1
+
         if ts is not None:
             change_ts = ts - self.timetree[tree_idx]
             change_d = d - self.demotree[tree_idx]
@@ -91,6 +99,9 @@ class SumTree(object):
         while tree_idx != 0:
             tree_idx = (tree_idx - 1) // 2
             self.tree[tree_idx] += change_p
+            self.reverse_tree[tree_idx] += change_reverse_p
+            if(change_num == 1):
+                self.numtree[tree_idx] += change_num
             if ts is not None:
                 self.timetree[tree_idx] += change_ts
                 self.demotree[tree_idx] += change_d
@@ -108,15 +119,15 @@ class SumTree(object):
             if left_child_idx >= len(self.tree):
                 leaf_idx = parent_idx
                 break
-            value = self.tree[left_child_idx]
+            value = self.reverse_tree[left_child_idx]
             ts = self.timetree[left_child_idx]
             demo = self.demotree[left_child_idx]
-
-            if v <= self.calc_exp_val(value, ts, demo, current_ts):
-                parent_idx = right_child_idx
-            else:
-                v -= self.calc_exp_val(value, ts, demo, current_ts)
+            num = self.numtree[left_child_idx]
+            if v <= self.calc_exp_val(value, ts, demo, current_ts, num):
                 parent_idx = left_child_idx
+            else:
+                v -= self.calc_exp_val(value, ts, demo, current_ts,num)
+                parent_idx = right_child_idx
             count += 1
         #print("chooseDeletedExpereience : " +str(count) + "/"+str(time.time() - start_time))
         return leaf_idx
@@ -138,27 +149,27 @@ class SumTree(object):
 
         data_idx = leaf_idx - self.capacity + 1
         return leaf_idx, self.tree[leaf_idx], self.data[data_idx]
-    def calc_exp_val(self, p, ts, d, current_ts):
-        if(current_ts == 0):
-            exp_val = (1-self.alpha)*p + self.beta *d
-        else :
-            exp_val = (1-self.alpha)*p + (self.alpha)*(ts/current_ts) + self.beta *d
+    def calc_exp_val(self, p, ts, d, current_ts, num):
+        exp_val = (1-self.alpha)*p + (self.alpha)*( num -(ts/current_ts)) + self.beta *d
         return exp_val
 
     def anneal_alpha_beta(self, delta, actor_num, sub_train_iter):
+        #print(sign(delta))
         delta = sign(delta)*math.log(abs(delta)+1)
+        #print(delta)
         epsilon = 0.001
-        self.d_score_cahe = self.gamma * self.d_score_cahe + (1-self.gamma) * (delta*delta)
-        if(self.alpha > self.min_alpha):
-            alpha_ada_decay_rate = (self.alpha_decay_rate * delta) / (self.d_score_cahe**(1/2)+epsilon)
-            self.alpha = (self.alpha - (sub_train_iter/actor_num)* alpha_ada_decay_rate * self.alpha)
-            if(self.alpha < self.min_alpha) :
-                self.alpha = self.min_alpha
-        if(self.beta > self.min_beta):
-            beta_ada_decay_rate = (self.beta_decay_rate * delta) / (self.d_score_cahe**(1/2)+epsilon)
-            self.beta = (self.beta - (sub_train_iter/actor_num)* beta_ada_decay_rate * self.beta)
-            if(self.beta < self.min_beta) :
-                self.beta = self.min_beta
+        for i in range(sub_train_iter):
+            self.d_score_cahe = self.gamma * self.d_score_cahe + (1-self.gamma) * (delta*delta)
+            if(self.alpha > self.min_alpha):
+                alpha_ada_decay_rate = (self.alpha_decay_rate * delta) / ((self.d_score_cahe**(1/2))+epsilon)
+                self.alpha = (self.alpha - (1/actor_num)* alpha_ada_decay_rate * self.alpha)
+                if(self.alpha < self.min_alpha) :
+                    self.alpha = self.min_alpha
+            if(self.beta > self.min_beta):
+                beta_ada_decay_rate = (self.beta_decay_rate * delta) / (self.d_score_cahe**(1/2)+epsilon)
+                self.beta = (self.beta - (1/actor_num)* beta_ada_decay_rate * self.beta)
+                if(self.beta < self.min_beta) :
+                    self.beta = self.min_beta
         print(self.alpha)
         print(self.beta)
     @property
@@ -170,6 +181,9 @@ class SumTree(object):
     @property
     def total_d(self):
         return self.demotree[0]
+    @property
+    def total_reverse_p(self):
+        return self.reverse_tree[0]
 
 class Memory(object):
 
@@ -196,7 +210,8 @@ class Memory(object):
         abs_errors += self.epsilon
         clipped_errors = np.minimum(abs_errors, self.abs_err_upper)
         ps = np.power(clipped_errors, self.alpha)
-        current_ts = current_ts +1
+        is_demo = 1 - is_demo
+        current_ts = current_ts + 1
         #log_current_ts = np.log(current_ts + 1)
         #print(ps)
         self.tree.add(ps[0], time_stamp, is_demo, transition, current_ts)  # set the max_p for new transition

@@ -248,7 +248,7 @@ class DQfD:
         #print(abs_errors)
         #print(abs_errors.shape)
 
-        self.replay_memory.store(np.array(transition), abs_errors, demo_data[0], time_step[0], current_ts)
+        self.replay_memory.store(np.array(transition), abs_errors, demo_data[0], time_step[0], self.time_step)
         #print("update :" +  str(time_step[0]) +"deleted :" + str(age))
         #if (self.name == 'actor0'):
         #   print(demo)
