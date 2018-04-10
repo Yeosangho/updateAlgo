@@ -3,11 +3,9 @@ import tensorflow as tf
 import math
 from Config import *
 import random
-from memory_profiler import profile
 import time
 import gc
-from mem_top import mem_top
-import tracemalloc
+
 
 np.random.seed(1)
 tf.set_random_seed(1)
@@ -20,11 +18,11 @@ class SumTree(object):
     def __init__(self, capacity, permanent_data=0):
         self.capacity = capacity
         self.tree = np.zeros(2 * capacity - 1)  # stores not probabilities but priorities !!!
-        self.reverse_tree = np.zeros(2*capacity - 1)
-        self.timetree = np.zeros(2 * capacity - 1)
-        self.demotree = np.zeros(2 * capacity - 1)
+        self.reverse_tree = np.zeros((4, 2*capacity - 1), dtype=np.float32)
+        #self.timetree = np.zeros(2 * capacity - 1)
+        #self.demotree = np.zeros(2 * capacity - 1)
 
-        self.numtree = np.zeros(2 * capacity - 1)
+        #self.numtree = np.zeros(2 * capacity - 1)
         self.data = np.zeros(capacity, dtype=object)  # stores transitions
         self.permanent_data = permanent_data  # numbers of data which never be replaced, for demo data protection
         assert 0 <= self.permanent_data <= self.capacity  # equal is also illegal
@@ -64,6 +62,7 @@ class SumTree(object):
                 self.delete_count = 0
             del_tree_idx = self.deletedIdx[self.delete_count]
             self.delete_count +=1
+            #del_tree_idx = 0
             del_data_idx = del_tree_idx - self.capacity + 1
             deleteddata = self.data[del_data_idx]
             self.data[del_data_idx]  = data
@@ -87,27 +86,27 @@ class SumTree(object):
         change_p = p - self.tree[tree_idx]
         self.tree[tree_idx] = p
 
-        deleted_reverse_p = self.reverse_tree[tree_idx]
-        change_reverse_p = (1-p) - self.reverse_tree[tree_idx]
-        self.reverse_tree[tree_idx] = 1-p
+        deleted_reverse_p = self.reverse_tree[0][tree_idx]
+        change_reverse_p = (1-p) - self.reverse_tree[0][tree_idx]
+        self.reverse_tree[0][tree_idx] = 1-p
 
-        change_num = 1 - self.numtree[tree_idx]
-        self.numtree[tree_idx] = 1
+        change_num = 1 - self.reverse_tree[3][tree_idx]
+        self.reverse_tree[3][tree_idx] = 1
 
         if ts is not None:
-            change_ts = ts - self.timetree[tree_idx]
-            change_d = d - self.demotree[tree_idx]
-            self.timetree[tree_idx] = ts
-            self.demotree[tree_idx] = d
+            change_ts = ts - self.reverse_tree[1][tree_idx]
+            change_d = d - self.reverse_tree[2][tree_idx]
+            self.reverse_tree[1][tree_idx] = ts
+            self.reverse_tree[2][tree_idx] = d
         while tree_idx != 0:
             tree_idx = (tree_idx - 1) // 2
             self.tree[tree_idx] += change_p
-            self.reverse_tree[tree_idx] += change_reverse_p
+            self.reverse_tree[0][tree_idx] += change_reverse_p
             if(change_num == 1):
-                self.numtree[tree_idx] += change_num
+                self.reverse_tree[3][tree_idx] += change_num
             if ts is not None:
-                self.timetree[tree_idx] += change_ts
-                self.demotree[tree_idx] += change_d
+                self.reverse_tree[1][tree_idx] += change_ts
+                self.reverse_tree[2][tree_idx] += change_d
 
         return deleted_p
 
@@ -117,10 +116,10 @@ class SumTree(object):
         #start_time = time.time()
         left_child_idx = 2 * parent_idx + 1
         right_child_idx = left_child_idx + 1
-        value = self.reverse_tree[left_child_idx]
-        ts = self.timetree[left_child_idx]
-        demo = self.demotree[left_child_idx]
-        num = self.numtree[left_child_idx]
+        value = self.reverse_tree[0][left_child_idx]
+        ts = self.reverse_tree[1][left_child_idx]
+        demo = self.reverse_tree[2][left_child_idx]
+        num = self.reverse_tree[3][left_child_idx]
         while( left_child_idx < len(self.tree)):
             exp_val = (1-self.alpha)*value + (self.alpha)*( num -(ts/current_ts)) + self.beta *demo
             if v <=   exp_val:
@@ -132,10 +131,10 @@ class SumTree(object):
             left_child_idx = 2 * parent_idx + 1
             right_child_idx = left_child_idx + 1
             if(left_child_idx < len(self.tree) ):
-                value = self.reverse_tree[left_child_idx]
-                ts = self.timetree[left_child_idx]
-                demo = self.demotree[left_child_idx]
-                num = self.numtree[left_child_idx]
+                value = self.reverse_tree[0][left_child_idx]
+                ts = self.reverse_tree[1][left_child_idx]
+                demo = self.reverse_tree[2][left_child_idx]
+                num = self.reverse_tree[3][left_child_idx]
         return parent_idx
 
 
@@ -181,13 +180,13 @@ class SumTree(object):
         return self.tree[0]
     @property
     def total_ts(self):
-        return self.timetree[0]
+        return self.reverse_tree[1][0]
     @property
     def total_d(self):
-        return self.demotree[0]
+        return self.reverse_tree[2][0]
     @property
     def total_reverse_p(self):
-        return self.reverse_tree[0]
+        return self.reverse_tree[0][0]
 
 class Memory(object):
 

@@ -22,9 +22,7 @@ import math
 import csv
 from datetime import datetime
 import gc
-from mem_top import mem_top
-from pympler import refbrowser
-import tracemalloc
+
 
 
 import sys
@@ -453,7 +451,6 @@ class Trainer():
         t_q_human = deque(maxlen=Config.trajectory_n)
         episode_count = 0
         train_itr = train_itr + 1
-        tracemalloc.start()
         while (learn_count < Config.LEARNER_TRAINING_STEP):
 
             human_state = process_frame(human_state)
