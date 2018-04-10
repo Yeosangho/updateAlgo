@@ -42,10 +42,12 @@ class Config:
 
     START_STEP = 0
     LEARNER_TRAINING_STEP = 1500000
-    LEARNER_TRAINING_PART = 100
-    ACTOR_ACTING_PART = 100
+    LEARNER_TRAINING_PART = 1000
+    ACTOR_ACTING_PART = 1000
     ACTOR_SLEEP = 0.05
     HUMAN_SLEEP = 0.05
+    ACTOR_HUMAN_COUNT = 4
+
 class DDQNConfig(Config):
     demo_mode = 'get_demo'
 

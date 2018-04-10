@@ -358,7 +358,6 @@ class DQfD:
             self.sess.run(self.update_target_net)
 
     def egreedy_action(self, state):
-        a= self.sess.run(self.update_local_ops)
 
         #sum =0
         #for i in a[5]:

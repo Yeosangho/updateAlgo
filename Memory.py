@@ -24,10 +24,10 @@ class SumTree(object):
         assert 0 <= self.permanent_data <= self.capacity  # equal is also illegal
         self.full = False
 
-        self.alpha = 0.6
-        self.min_alpha = 0.05
-        self.beta = 0.4
-        self.min_beta = 0.0001
+        self.alpha = 0.7
+        self.min_alpha = 0.1
+        self.beta = 0.3
+        self.min_beta = 0.001
         self.gamma = 0.99
         self.alpha_decay_rate = 0.000003
         self.beta_decay_rate = 0.000002
@@ -36,8 +36,7 @@ class SumTree(object):
         self.avg_val = 0
         self.avg_time = 0
         self.avg_demo = 0
-        self.deleted_candidates = [0] * Config.BATCH_SIZE
-        self.del_count = 0
+
 
     def __len__(self):
         return self.capacity if self.full else self.data_pointer
@@ -53,15 +52,14 @@ class SumTree(object):
                 self.data_pointer = self.data_pointer % self.capacity + self.permanent_data  # make sure demo data permanent
         elif (self.full):
 
+            if (current_ts == 0):
+                experience_val = (1 - self.alpha) * self.total_p + self.beta * self.total_d
+            else:
+                experience_val = (1 - self.alpha) * self.total_p + (self.alpha) * (
+                            self.total_ts / current_ts) + self.beta * self.total_d
 
-            if(self.deleted_candidates.__len__ ()== 0):
-                del_tree_idx = self.capacity -1
-            else :
-                del_tree_idx = self.deleted_candidates[self.del_count]
-                self.del_count += 1
-                if(self.del_count %  Config.BATCH_SIZE == 0):
-                    self.del_count = 0
-            #del_tree_idx = self.capacity + 1
+            v = np.random.uniform(0, experience_val)
+            del_tree_idx = self.chooseDeletedExperience(v, current_ts)
             del_data_idx = del_tree_idx - self.capacity + 1
             deleteddata = self.data[del_data_idx]
             self.data[del_data_idx]  = data
@@ -198,10 +196,10 @@ class Memory(object):
         abs_errors += self.epsilon
         clipped_errors = np.minimum(abs_errors, self.abs_err_upper)
         ps = np.power(clipped_errors, self.alpha)
-        log_time_stamp = np.log(time_stamp+1)
-        log_current_ts = np.log(current_ts + 1)
+        current_ts = current_ts +1
+        #log_current_ts = np.log(current_ts + 1)
         #print(ps)
-        self.tree.add(ps[0], log_time_stamp, is_demo, transition, log_current_ts)  # set the max_p for new transition
+        self.tree.add(ps[0], time_stamp, is_demo, transition, current_ts)  # set the max_p for new transition
         #value, age, demo = self.tree.add(ps[0], log_time_stamp, is_demo, transition, log_current_ts)  # set the max_p for new transition
     def sample(self, n, current_ts):
         assert self.full()
@@ -217,10 +215,7 @@ class Memory(object):
         pmore = 0
         p2more = 0
 
-        if (current_ts == 0):
-            experience_val = (1 - self.tree.alpha) * self.tree.total_p + self.tree.beta * self.tree.total_d
-        else:
-            experience_val = (1 - self.tree.alpha) * self.tree.total_p + (self.tree.alpha) * (self.tree.total_ts / current_ts) + self.tree.beta * self.tree.total_d
+
 
 
         for i in range(n):
@@ -230,9 +225,7 @@ class Memory(object):
             #v = self.tree.total_p - 0.001
             idx, p, data = self.tree.get_leaf(v)  # note: idx is the index in self.tree.tree
 
-            v = np.random.uniform(0, experience_val)
-            del_tree_idx = self.tree.chooseDeletedExperience(v, current_ts)
-            self.tree.deleted_candidates[i] = del_tree_idx
+
             #print("p :" + str(p))
             #idx2, p2, _ = self.tree.chooseDeletedExperience(v)
             #print("p2 :" + str(p2))
@@ -252,8 +245,8 @@ class Memory(object):
         abs_errors += self.epsilon
         clipped_errors = np.minimum(abs_errors, self.abs_err_upper)
         ps = np.power(clipped_errors, self.alpha)
-        time_stamp = np.asarray(time_stamp)
-        time_stamp = np.log(time_stamp + 1)
+        #time_stamp = np.asarray(time_stamp)
+        #time_stamp = np.log(time_stamp + 1)
         isdemo = np.asarray(isdemo)
         #log_time_stamp = np.log(time_stamp +1)
         #print(time_stamp.shape)
@@ -265,7 +258,3 @@ class Memory(object):
     def update_alpha_and_beta(self, dscore, actor_num, sub_train_iter):
         self.tree.anneal_alpha_beta(dscore, actor_num, sub_train_iter)
 
-if __name__ == '__main__':
-    np.zeros
-
-    basic_mean()
