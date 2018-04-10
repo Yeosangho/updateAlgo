@@ -509,7 +509,7 @@ class Trainer():
                     self.agent.train_Q_network(update=False)  # train along with generation
                     learn_count += 1
                     if (train_itr % Config.LEARNER_TRAINING_PART == 0):
-                        #self.agent.save_model()
+                        self.agent.save_model()
                         sample_demo = float(self.agent.demo_num) / (Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE)
                         sample_value = math.pow(
                             self.agent.sum_abs_error / (Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE), 0.4)
