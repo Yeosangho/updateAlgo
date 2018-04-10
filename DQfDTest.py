@@ -22,6 +22,10 @@ import math
 import csv
 from datetime import datetime
 import gc
+from mem_top import mem_top
+from pympler import refbrowser
+import tracemalloc
+
 
 import sys
 from random import shuffle
@@ -29,10 +33,7 @@ def process_frame(frame):
     s = scipy.misc.imresize(frame, [84, 84, 3])
     s = s / 255.0
     return s
-def process_frame(frame):
-    s = scipy.misc.imresize(frame, [84, 84, 3])
-    s = s / 255.0
-    return s
+
 def load_image( infilename ) :
     img = Image.open( infilename )
     img.load()
@@ -452,7 +453,7 @@ class Trainer():
         t_q_human = deque(maxlen=Config.trajectory_n)
         episode_count = 0
         train_itr = train_itr + 1
-
+        tracemalloc.start()
         while (learn_count < Config.LEARNER_TRAINING_STEP):
 
             human_state = process_frame(human_state)
@@ -541,6 +542,7 @@ class Trainer():
                     self.agent.sess.run(self.agent.update_target_net)
                 if(train_itr % 100 == 0):
                      print("process time : " + str(time.time() -startTime) + "/"+str(self.agent.replay_memory.tree.data_pointer))
+
                 if (train_itr % Config.ACTOR_ACTING_PART == 0):
                     sum_value = self.agent.replay_memory.tree.avg_val / Config.ACTOR_ACTING_PART
                     sum_age = self.agent.replay_memory.tree.avg_time / Config.ACTOR_ACTING_PART

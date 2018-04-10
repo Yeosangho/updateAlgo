@@ -6,6 +6,9 @@ import random
 from memory_profiler import profile
 import time
 import gc
+from mem_top import mem_top
+import tracemalloc
+
 np.random.seed(1)
 tf.set_random_seed(1)
 
@@ -40,7 +43,8 @@ class SumTree(object):
         self.avg_time = 0
         self.avg_demo = 0
 
-
+        self.deletedIdx = [0] * Config.BATCH_SIZE
+        self.delete_count = 0
     def __len__(self):
         return self.capacity if self.full else self.data_pointer
     def add(self, p,  time_stamp, is_demo, data, current_ts):
@@ -56,11 +60,10 @@ class SumTree(object):
         elif (self.full):
 
 
-            experience_val = (1 - self.alpha) * self.total_reverse_p + (self.alpha) * (
-                    self.capacity - (self.total_ts/current_ts)) + self.beta * self.total_d
-            #print(self.numtree[1])
-            v = np.random.uniform(0, experience_val)
-            del_tree_idx = self.chooseDeletedExperience(v, current_ts)
+            if(self.delete_count == Config.BATCH_SIZE):
+                self.delete_count = 0
+            del_tree_idx = self.deletedIdx[self.delete_count]
+            self.delete_count +=1
             del_data_idx = del_tree_idx - self.capacity + 1
             deleteddata = self.data[del_data_idx]
             self.data[del_data_idx]  = data
@@ -112,25 +115,28 @@ class SumTree(object):
         parent_idx = 0
         count =0
         #start_time = time.time()
-        while True:
-            left_child_idx = 2 * parent_idx + 1
-            right_child_idx = left_child_idx + 1
-            
-            if left_child_idx >= len(self.tree):
-                leaf_idx = parent_idx
-                break
-            value = self.reverse_tree[left_child_idx]
-            ts = self.timetree[left_child_idx]
-            demo = self.demotree[left_child_idx]
-            num = self.numtree[left_child_idx]
-            if v <= self.calc_exp_val(value, ts, demo, current_ts, num):
+        left_child_idx = 2 * parent_idx + 1
+        right_child_idx = left_child_idx + 1
+        value = self.reverse_tree[left_child_idx]
+        ts = self.timetree[left_child_idx]
+        demo = self.demotree[left_child_idx]
+        num = self.numtree[left_child_idx]
+        while( left_child_idx < len(self.tree)):
+            exp_val = (1-self.alpha)*value + (self.alpha)*( num -(ts/current_ts)) + self.beta *demo
+            if v <=   exp_val:
                 parent_idx = left_child_idx
             else:
-                v -= self.calc_exp_val(value, ts, demo, current_ts,num)
+                v -=  exp_val
                 parent_idx = right_child_idx
             count += 1
-        #print("chooseDeletedExpereience : " +str(count) + "/"+str(time.time() - start_time))
-        return leaf_idx
+            left_child_idx = 2 * parent_idx + 1
+            right_child_idx = left_child_idx + 1
+            if(left_child_idx < len(self.tree) ):
+                value = self.reverse_tree[left_child_idx]
+                ts = self.timetree[left_child_idx]
+                demo = self.demotree[left_child_idx]
+                num = self.numtree[left_child_idx]
+        return parent_idx
 
 
     def get_leaf(self, v):
@@ -149,9 +155,7 @@ class SumTree(object):
 
         data_idx = leaf_idx - self.capacity + 1
         return leaf_idx, self.tree[leaf_idx], self.data[data_idx]
-    def calc_exp_val(self, p, ts, d, current_ts, num):
-        exp_val = (1-self.alpha)*p + (self.alpha)*( num -(ts/current_ts)) + self.beta *d
-        return exp_val
+
 
     def anneal_alpha_beta(self, delta, actor_num, sub_train_iter):
         #print(sign(delta))
@@ -230,8 +234,10 @@ class Memory(object):
         pmore = 0
         p2more = 0
 
-
-
+        experience_val = (1 - self.tree.alpha) * self.tree.total_reverse_p + (self.tree.alpha) * (
+                self.tree.capacity - (self.tree.total_ts / current_ts)) + self.beta * self.tree.total_d
+        # print(self.numtree[1])
+        v = np.random.uniform(0, experience_val)
 
         for i in range(n):
             v = np.random.uniform(pri_seg * i, pri_seg * (i + 1))
@@ -241,6 +247,8 @@ class Memory(object):
             idx, p, data = self.tree.get_leaf(v)  # note: idx is the index in self.tree.tree
 
 
+            del_tree_idx = self.tree.chooseDeletedExperience(v, current_ts)
+            self.tree.deletedIdx[i] = del_tree_idx
             #print("p :" + str(p))
             #idx2, p2, _ = self.tree.chooseDeletedExperience(v)
             #print("p2 :" + str(p2))
