@@ -453,7 +453,7 @@ class Trainer():
         episode_count = 0
         train_itr = train_itr + 1
 
-        while (train_itr < Config.LEARNER_TRAINING_STEP):
+        while (learn_count < Config.LEARNER_TRAINING_STEP):
 
             human_state = process_frame(human_state)
             actor_state = process_frame(actor_state)
