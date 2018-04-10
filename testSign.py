@@ -20,3 +20,6 @@ x= math.log(2000000)
 print(x)
 print(sys.getsizeof(x))
 
+zeros = [[0]*3]*2
+zeros[2][0]
+print(zeros)

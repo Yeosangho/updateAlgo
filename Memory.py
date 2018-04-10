@@ -18,7 +18,7 @@ class SumTree(object):
     def __init__(self, capacity, permanent_data=0):
         self.capacity = capacity
         self.tree = np.zeros(2 * capacity - 1)  # stores not probabilities but priorities !!!
-        self.reverse_tree = np.zeros((4, 2*capacity - 1), dtype=np.float32)
+        self.reverse_tree = [[0.0] * (2*capacity-1)] * 4
         #self.timetree = np.zeros(2 * capacity - 1)
         #self.demotree = np.zeros(2 * capacity - 1)
 
