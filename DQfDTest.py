@@ -479,7 +479,6 @@ class Trainer():
                                 actor_n_step_reward = (actor_n_step_reward - reward_to_sub) / Config.GAMMA
                                 actor_n_step_reward += reward * Config.GAMMA ** (Config.trajectory_n - 1)
                             t_q_actor[0].extend([actor_n_step_reward, next_state, actor_done, t_q_actor.maxlen, self.agent.time_step])  # actual_n is max_len here
-                            avg_actor_time_step += self.agent.time_step
                             self.agent.perceive(t_q_actor[0], self.agent.time_step)  # perceive when a transition is completed
                             # print(demo)
                             # print(t_q[0][3])
@@ -502,9 +501,9 @@ class Trainer():
                             else:
                                 human_n_step_reward = (human_n_step_reward - reward_to_sub) / Config.GAMMA
                                 human_n_step_reward += reward * Config.GAMMA ** (Config.trajectory_n - 1)
-                            time_step = int(avg_actor_time_step/(Config.ACTOR_HUMAN_COUNT-1))
-                            avg_actor_time_step = 0
-                            t_q_human[0].extend([human_n_step_reward, next_state, human_done, t_q_human.maxlen, time_step])  # actual_n is max_len here
+
+
+                            t_q_human[0].extend([human_n_step_reward, next_state, human_done, t_q_human.maxlen, self.agent.time_step])  # actual_n is max_len here
                             self.agent.perceive(t_q_human[0], self.agent.time_step)  # perceive when a transition is completed
                         human_state = next_state
                 train_itr = train_itr + 1
@@ -518,7 +517,6 @@ class Trainer():
                             self.agent.sum_abs_error / (Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE), 0.4)
                         sample_age = self.agent.sum_age / (Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE)
                         sample_q = self.agent.qvalue /(Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE)
-                        print(self.agent.time_step)
                         print("learner_sample")
                         print(sample_value)
                         print(sample_age)
