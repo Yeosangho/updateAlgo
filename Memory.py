@@ -47,10 +47,10 @@ class SumTree(object):
 
         self.alpha = 0.7
         self.min_alpha = 0.1
-        self.beta = 0.7
-        self.min_beta = 0.001
+        self.beta = 0.2
+        self.min_beta = 0.0001
         self.gamma = 0.99
-        self.alpha_decay_rate = 0.00001
+        self.alpha_decay_rate = 0.000002
         self.beta_decay_rate = 0.00001
 
         self.d_score_cahe = 0
@@ -104,9 +104,8 @@ class SumTree(object):
             #print(self.timetree[1])
             #print(del_tree_idx)
             self.data_pointer = tree_idx - self.capacity + 1
-            deleteddata = self.data[self.data_pointer]
-
-
+            age = self.data10[self.data_pointer]
+            demo = int(self.data5[self.data_pointer])
             #self.data[self.data_pointer] = data  #####Memory Leak!!!
 
             self.data0[self.data_pointer] = data[0]
@@ -124,8 +123,8 @@ class SumTree(object):
 
             value = self.update(tree_idx, p, time_stamp, is_demo)
 
-            age = deleteddata[10]
-            demo = int(deleteddata[5])
+
+
 
 
             self.avg_val = self.avg_val + value

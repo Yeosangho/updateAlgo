@@ -80,7 +80,7 @@ class DQfD:
         self.demo_num = 0
         self.sum_abs_error = 0
         self.sum_age = 0
-
+        self.qvalue = [0.0] * self.action_dim
         self.oldsum = 0
     def add_demo_to_memory(self, demo_transitions):
         # add demo data to both demo_memory & replay_memory
@@ -233,6 +233,7 @@ class DQfD:
         demo_data = np.expand_dims(transition[5], axis=0)
         time_step = np.expand_dims(transition[10], axis=0)
         y_batch = np.zeros((1, self.action_dim))
+        #print(time_step)
 
         Q_select = self.sess.run(self.Q_select, feed_dict={self.select_input: next_state_batch})
         Q_eval = self.sess.run(self.Q_eval, feed_dict={self.eval_input: next_state_batch})
@@ -329,6 +330,7 @@ class DQfD:
             if(demo_data[i] == 1.0):
                 self.demo_num = self.demo_num + 1
             self.sum_age = self.sum_age + time_steps[i]
+            self.qvalue += Q_select[i]
             #print(time_steps[i])
         #print(time_steps)
 

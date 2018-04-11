@@ -138,7 +138,7 @@ class Learner(object):
         train_itr = 0
 
         scores, e, replay_full_episode = [], 0, None
-        sample_log = openLog(Config.LEARNER_DATA_PATH + 'sampleexp/', '', ['step', 'value', 'age', 'demo'])
+        sample_log = openLog(Config.LEARNER_DATA_PATH + 'sampleexp/', '', ['step', 'value', 'age', 'demo', 'q_value'])
         replay_log = openLog(Config.LEARNER_DATA_PATH + 'replaymemory/', '', ['step', 'root_priority', 'root_ts', 'root_demo', 'alpha', 'beta'])
 
         while not self.learner.replay_memory.full() :
@@ -440,7 +440,7 @@ class Trainer():
         self.i, self.f = goNextEpisode(self.i, self.f, self.episode)
         episodeEnd = False
 
-        sample_log = openLog(Config.LEARNER_DATA_PATH + 'sampleexp/', '', ['step', 'value', 'age', 'demo'])
+        sample_log = openLog(Config.LEARNER_DATA_PATH + 'sampleexp/', '', ['step', 'value', 'age', 'demo', 'qvalue'])
         replay_log = openLog(Config.LEARNER_DATA_PATH + 'replaymemory/', '', ['step', 'root_priority', 'root_ts', 'root_demo', 'alpha', 'beta'])
         delete_log = openLog(Config.ACTOR_DATA_PATH + 'deletedexp/', '', ['step', 'train_itr', 'value', 'age', 'demo'])
         episode_log = openLog(Config.ACTOR_DATA_PATH + 'episodescore/', '', ['episode', 'score'])
@@ -451,6 +451,8 @@ class Trainer():
         t_q_human = deque(maxlen=Config.trajectory_n)
         episode_count = 0
         train_itr = train_itr + 1
+        avg_actor_time_step = 0
+        act_itr =0
         while (learn_count < Config.LEARNER_TRAINING_STEP):
 
             human_state = process_frame(human_state)
@@ -477,13 +479,13 @@ class Trainer():
                                 actor_n_step_reward = (actor_n_step_reward - reward_to_sub) / Config.GAMMA
                                 actor_n_step_reward += reward * Config.GAMMA ** (Config.trajectory_n - 1)
                             t_q_actor[0].extend([actor_n_step_reward, next_state, actor_done, t_q_actor.maxlen, self.agent.time_step])  # actual_n is max_len here
+                            avg_actor_time_step += self.agent.time_step
                             self.agent.perceive(t_q_actor[0], self.agent.time_step)  # perceive when a transition is completed
                             # print(demo)
                             # print(t_q[0][3])
                             # print(self.learner.time_step)
 
                             actor_state = next_state
-
                 if (train_itr % Config.ACTOR_HUMAN_COUNT == 0):
                     startTime = time.time()
                     next_state, reward, human_done, action, episodeEnd = step(self.i, self.f, self.episode)
@@ -500,8 +502,9 @@ class Trainer():
                             else:
                                 human_n_step_reward = (human_n_step_reward - reward_to_sub) / Config.GAMMA
                                 human_n_step_reward += reward * Config.GAMMA ** (Config.trajectory_n - 1)
-
-                            t_q_human[0].extend([human_n_step_reward, next_state, human_done, t_q_human.maxlen, self.agent.time_step])  # actual_n is max_len here
+                            time_step = int(avg_actor_time_step/(Config.ACTOR_HUMAN_COUNT-1))
+                            avg_actor_time_step = 0
+                            t_q_human[0].extend([human_n_step_reward, next_state, human_done, t_q_human.maxlen, time_step])  # actual_n is max_len here
                             self.agent.perceive(t_q_human[0], self.agent.time_step)  # perceive when a transition is completed
                         human_state = next_state
                 train_itr = train_itr + 1
@@ -514,18 +517,26 @@ class Trainer():
                         sample_value = math.pow(
                             self.agent.sum_abs_error / (Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE), 0.4)
                         sample_age = self.agent.sum_age / (Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE)
+                        sample_q = self.agent.qvalue /(Config.LEARNER_TRAINING_PART * Config.BATCH_SIZE)
+                        print(self.agent.time_step)
                         print("learner_sample")
                         print(sample_value)
                         print(sample_age)
                         print(sample_demo)
+                        print(sample_q)
 
+                        sum_sample_q = 0
+                        for i in range(6):
+                            sum_sample_q += sample_q[i]
+                        print(sum_sample_q)
                         self.agent.sum_abs_error = 0
                         self.agent.demo_num = 0
                         self.agent.sum_age = 0
+                        self.agent.qvalue = 0
                         print("replay_memory")
                         print(self.agent.replay_memory.tree.total_p)
                         writeLog(Config.LEARNER_DATA_PATH + 'sampleexp/', sample_log,
-                                 [str(train_itr), str(sample_value), str(sample_age), str(sample_demo)])
+                                 [str(train_itr), str(sample_value), str(sample_age), str(sample_demo), str(sum_sample_q)])
                         writeLog(Config.LEARNER_DATA_PATH + 'replaymemory/', replay_log,
                                  [str(train_itr),
                                   str(self.agent.replay_memory.tree.total_p),
@@ -578,11 +589,11 @@ class Trainer():
                                  [str(episode_count), str(actor_score)])
 
                 # 주기적으로 에피소드의 gif 를 저장하고, 모델 파라미터와 요약 통계량을 저장한다.
-                if episode_count % Config.GIF_STEP == 0 and episode_count != 0 :
-                    time_per_step = 0.01
-                    images = np.array(episode_frames)
-                    make_gif(images, './frames/dqfd_image' + str(episode_count) + '.gif',
-                             duration=len(images) * time_per_step, true_image=True, salience=False)
+                #if episode_count % Config.GIF_STEP == 0 and episode_count != 0 :
+                #    time_per_step = 0.05
+                #    images = np.array(episode_frames)
+                #    make_gif(images, './frames/dqfd_image' + str(episode_count) + '.gif',
+                #             duration=len(images) * time_per_step, true_image=True, salience=False)
                 actor_done, actor_score, actor_n_step_reward, actor_state = False, 0, None, self.env.reset()
                 t_q_actor = deque(maxlen=Config.trajectory_n)
                 episode_count = episode_count + 1
