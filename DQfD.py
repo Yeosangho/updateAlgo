@@ -331,6 +331,7 @@ class DQfD:
             self.sum_age = self.sum_age + time_steps[i]
             #print(time_steps[i])
         #print(time_steps)
+
         #print('1:' +str(time.time()- start_time))
         #start_time = time.time()
         _,  abs_errors = self.sess.run([self.optimize, self.abs_errors],

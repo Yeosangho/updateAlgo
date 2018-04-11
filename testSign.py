@@ -1,7 +1,9 @@
 import math
 import sys
 from memory_profiler import profile
-
+import numpy as np
+import resource
+import gc
 a = -100
 b = -100
 
@@ -23,3 +25,9 @@ print(sys.getsizeof(x))
 zeros = [[1,2,3],[4,5,6]]
 
 print(zeros[1][0])
+i = [0.0]*(2*250000-1)
+print(resource.getrlimit(i))
+for j in range(2000000) :
+    i[0] += float(2000000.0)
+print((i[0]))
+gc.collect()

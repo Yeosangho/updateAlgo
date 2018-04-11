@@ -15,3 +15,7 @@ a = [[1]]
 b = [[2]]
 print(math.log(500000*2 +1,2))
 #print(816*64)
+print(1/math.pow(100000, 0.2))
+values = [100, 200, 300, 400, 500, 600]
+del values[2]
+print(values)

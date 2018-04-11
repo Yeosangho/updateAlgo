@@ -533,6 +533,7 @@ class Trainer():
                                   str(self.agent.replay_memory.tree.total_d),
                                   str(self.agent.replay_memory.tree.alpha),
                                   str(self.agent.replay_memory.tree.beta)])
+                        gc.collect()
                     replay_full_episode = replay_full_episode or e
                 if learn_count % Config().UPDATE_TARGET_NET == 0:
                     # print("actor_update_target"+str(train_itr))
@@ -577,7 +578,7 @@ class Trainer():
                                  [str(episode_count), str(actor_score)])
 
                 # 주기적으로 에피소드의 gif 를 저장하고, 모델 파라미터와 요약 통계량을 저장한다.
-                if episode_count % Config.GIF_STEP == 0 and episode_count != 0 and self.name == 'actor0':
+                if episode_count % Config.GIF_STEP == 0 and episode_count != 0 :
                     time_per_step = 0.01
                     images = np.array(episode_frames)
                     make_gif(images, './frames/dqfd_image' + str(episode_count) + '.gif',
